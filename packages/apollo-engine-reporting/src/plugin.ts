@@ -3,7 +3,8 @@ import {
   Logger,
   GraphQLRequestContextExecutionDidStart,
   GraphQLRequestContextDidEncounterErrors,
-} from 'apollo-server-types';
+  GraphQLRequestContextDidResolveOperation
+} from "apollo-server-types";
 import { Headers } from 'apollo-server-env';
 import { Trace } from 'apollo-engine-reporting-protobuf';
 
@@ -30,13 +31,13 @@ const clientVersionHeaderKey = 'apollographql-client-version';
 export const plugin = <TContext>(
   options: EngineReportingOptions<TContext> = Object.create(null),
   addTrace: (args: AddTraceArgs) => Promise<void>,
-  // schemaHash: string,
 ): ApolloServerPlugin<TContext> => {
   const logger: Logger = options.logger || console;
   const generateClientInfo: GenerateClientInfo<TContext> =
     options.generateClientInfo || defaultGenerateClientInfo;
 
 
+  // If report is the boolean false value
   return {
     requestDidStart({
       logger: requestLogger,
