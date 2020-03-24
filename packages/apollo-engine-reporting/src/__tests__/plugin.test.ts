@@ -54,15 +54,11 @@ const queryReport = `
     }
 `;
 
-
-it("trace construction", async () => {
+it('trace construction', async () => {
   const schema = makeExecutableSchema({ typeDefs });
   addMockFunctionsToSchema({ schema });
 
-  const traces: Array<AddTraceArgs> = [];
-  async function addTrace(args: AddTraceArgs) {
-    traces.push(args);
-  }
+  const addTrace = jest.fn();
 
   const pluginInstance = plugin({ /* no options!*/ }, addTrace);
 
@@ -149,10 +145,13 @@ describe('check variableJson output for sendVariableValues all/none type', () =>
       nonFilteredOutput,
     );
 
-    expect(makeTraceDetails(variables,
-      // @ts-ignore Testing untyped usage; only `{ all: true }` is legal.
-      { all: false }
-    )).toEqual(filteredOutput);
+    expect(
+      makeTraceDetails(
+        variables,
+        // @ts-ignore Testing untyped usage; only `{ all: true }` is legal.
+        { all: false },
+      ),
+    ).toEqual(filteredOutput);
   });
 });
 
@@ -320,92 +319,91 @@ function makeTestHTTP(): Trace.HTTP {
 }
 
 describe("tests for the shouldReportQuery reporting option", () => {
-    it("report no traces", async () => {
-      const schema = makeExecutableSchema({ typeDefs });
-      addMockFunctionsToSchema({ schema });
+  it("report no traces", async () => {
+    const schema = makeExecutableSchema({ typeDefs });
+    addMockFunctionsToSchema({ schema });
 
-      async function addTrace(_args: AddTraceArgs) {
-        throw new Error("Should not add any traces");
-      }
+    const addTrace = jest.fn();
 
-      const pluginInstance = plugin({report: false}, addTrace);
+    const pluginInstance = plugin({ report: false }, addTrace);
 
-      pluginTestHarness({
-        pluginInstance,
-        schema,
-        graphqlRequest: {
-          query,
-          operationName: 'q',
-          extensions: {
-            clientName: 'testing suite',
-          },
-          http: new Request('http://localhost:123/foo'),
+    pluginTestHarness({
+      pluginInstance,
+      schema,
+      graphqlRequest: {
+        query,
+        operationName: 'q',
+        extensions: {
+          clientName: 'testing suite',
         },
-        executor: async ({ request: { query: source }}) => {
-          return await graphql({
-            schema,
-            source,
-          });
-        },
-      });
-    });
-
-    it("report traces based on operation name", async () => {
-      const schema = makeExecutableSchema({ typeDefs });
-      addMockFunctionsToSchema({ schema });
-
-      async function addTrace(args: AddTraceArgs) {
-        expect(args.operationName).toEqual("report");
-      }
-
-      const pluginInstance = plugin(
-        {
-          report: async (request) => {
-            return request.operationName === 'report'
-          }
-        }, addTrace);
-
-      pluginTestHarness({
-        pluginInstance,
-        schema,
-        graphqlRequest: {
-          query: queryReport,
-          operationName: 'report',
-          extensions: {
-            clientName: 'testing suite',
-          },
-          http: new Request('http://localhost:123/foo'),
-        },
-        executor: async ({ request: { query: source }}) => {
-          return await graphql({
-            schema,
-            source,
-          });
-        },
-      });
-
-      pluginTestHarness({
-        pluginInstance,
-        schema,
-        graphqlRequest: {
-          query,
-          operationName: 'q',
-          extensions: {
-            clientName: 'testing suite',
-          },
-          http: new Request('http://localhost:123/foo'),
-        },
-        executor: async ({ request: { query: source }}) => {
-          return await graphql({
-            schema,
-            source,
-          });
-        },
-      });
-
-
+        http: new Request('http://localhost:123/foo'),
+      },
+      executor: async ({ request: { query: source } }) => {
+        return await graphql({
+          schema,
+          source,
+        });
+      },
     });
   });
+
+  it('report traces based on operation name', async () => {
+    const schema = makeExecutableSchema({ typeDefs });
+    addMockFunctionsToSchema({ schema });
+
+    const addTrace = jest.fn();
+
+    const pluginInstance = plugin(
+      {
+        report: async (request) => {
+          return request.operationName === 'report'
+        }
+      }, addTrace);
+
+    pluginTestHarness({
+      pluginInstance,
+      schema,
+      graphqlRequest: {
+        query: queryReport,
+        operationName: 'report',
+        extensions: {
+          clientName: 'testing suite',
+        },
+        http: new Request('http://localhost:123/foo'),
+      },
+      executor: async ({ request: { query: source } }) => {
+        return await graphql({
+          schema,
+          source,
+        });
+      },
+    });
+
+    expect(addTrace).toBeCalledTimes(1);
+    addTrace.mockReset()
+
+    pluginTestHarness({
+      pluginInstance,
+      schema,
+      graphqlRequest: {
+        query,
+        operationName: 'q',
+        extensions: {
+          clientName: 'testing suite',
+        },
+        http: new Request('http://localhost:123/foo'),
+      },
+      executor: async ({ request: { query: source } }) => {
+        return await graphql({
+          schema,
+          source,
+        });
+      },
+    });
+
+    expect(addTrace).not.toBeCalled();
+  });
+});
 
 
 /**
@@ -422,7 +420,7 @@ describe('tests for the sendHeaders reporting option', () => {
     const http = makeTestHTTP();
     makeHTTPRequestHeaders(http, headers,
       // @ts-ignore: `null` is not a valid type; check output on invalid input.
-      null
+      null,
     );
     expect(http.requestHeaders).toEqual({});
     makeHTTPRequestHeaders(http, headers, undefined);
@@ -443,16 +441,20 @@ describe('tests for the sendHeaders reporting option', () => {
 
   it('invalid inputs for sendHeaders.all and sendHeaders.none', () => {
     const httpSafelist = makeTestHTTP();
-    makeHTTPRequestHeaders(httpSafelist, headers,
+    makeHTTPRequestHeaders(
+      httpSafelist,
+      headers,
       // @ts-ignore Testing untyped usage; only `{ none: true }` is legal.
-      { none: false }
+      { none: false },
     );
     expect(httpSafelist.requestHeaders).toEqual(headersOutput);
 
     const httpBlocklist = makeTestHTTP();
-    makeHTTPRequestHeaders(httpBlocklist, headers,
+    makeHTTPRequestHeaders(
+      httpBlocklist,
+      headers,
       // @ts-ignore Testing untyped usage; only `{ all: true }` is legal.
-      { all: false }
+      { all: false },
     );
     expect(httpBlocklist.requestHeaders).toEqual({});
   });
