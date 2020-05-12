@@ -4,6 +4,11 @@
     "rootDir": "./src",
     "outDir": "./dist"
   },
+  "lib": [
+    "dom",
+    "es2017",
+    "esnext.asynciterable"
+  ],
   "include": ["src/**/*"],
   "exclude": ["**/__tests__", "**/__mocks__"],
   "references": [
