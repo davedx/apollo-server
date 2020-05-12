@@ -156,7 +156,7 @@ export interface EngineReportingOptions<TContext> {
   /**
    * The URL of the Engine report ingress server.
    */
-  metricEndpointUrl?: string;
+  metricsEndpointUrl?: string;
   /**
    * If set, prints all reports as JSON when they are sent.
    */
@@ -562,7 +562,7 @@ export class EngineReportingAgent<TContext = any> {
     });
 
     const endpointUrl =
-      (this.options.metricEndpointUrl ||
+      (this.options.metricsEndpointUrl ||
         'https://engine-report.apollodata.com') + '/api/ingress/traces';
 
     // Wrap fetch with async-retry for automatic retrying
@@ -655,7 +655,7 @@ export class EngineReportingAgent<TContext = any> {
       serverInfo,
       executableSchema,
       this.apiKey,
-      this.options.schemaReportingUrl
+      this.options.schemaReportingUrl,
     );
 
     const fallbackReportingDelayInMs = 20_000;
