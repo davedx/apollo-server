@@ -332,8 +332,12 @@ export class EngineReportingAgent<TContext = any> {
   private readonly logger: Logger = console;
   private readonly graphVariant: string;
 
-  private reports: { [executableSchemaId: string]: Report } = Object.create(null);
-  private reportSizes: { [executableSchemaId: string]: number } = Object.create(null);
+  private reports: { [executableSchemaId: string]: Report } = Object.create(
+    null,
+  );
+  private reportSizes: { [executableSchemaId: string]: number } = Object.create(
+    null,
+  );
 
   private reportTimer: any; // timer typing is weird and node-specific
   private readonly sendReportsImmediately?: boolean;
@@ -562,7 +566,7 @@ export class EngineReportingAgent<TContext = any> {
       });
     });
 
-    const endpointUrl =
+    const metricsEndpointUrl =
       (this.options.metricsEndpointUrl ||
         'https://engine-report.apollodata.com') + '/api/ingress/traces';
 
@@ -571,7 +575,7 @@ export class EngineReportingAgent<TContext = any> {
       // Retry on network errors and 5xx HTTP
       // responses.
       async () => {
-        const curResponse = await fetch(endpointUrl, {
+        const curResponse = await fetch(metricsEndpointUrl, {
           method: 'POST',
           headers: {
             'user-agent': 'apollo-engine-reporting',

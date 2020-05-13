@@ -50,8 +50,18 @@ it('trace construction', async () => {
   async function addTrace(args: AddTraceArgs) {
     traces.push(args);
   }
+  const startSchemaReporting = jest.fn();
+  const executableSchemaIdGenerator = jest.fn();
 
-  const pluginInstance = plugin({ /* no options!*/ }, addTrace);
+  const pluginInstance = plugin(
+    {
+      /* no options!*/
+    },
+    addTrace,
+    startSchemaReporting,
+    null,
+    executableSchemaIdGenerator,
+  );
 
   pluginTestHarness({
     pluginInstance,
@@ -64,7 +74,7 @@ it('trace construction', async () => {
       },
       http: new Request('http://localhost:123/foo'),
     },
-    executor: async ({ request: { query: source }}) => {
+    executor: async ({ request: { query: source } }) => {
       return await graphql({
         schema,
         source,
@@ -129,17 +139,21 @@ describe('check variableJson output for sendVariableValues all/none type', () =>
   });
 
   it('Case 4: Check behavior for invalid inputs', () => {
-    expect(makeTraceDetails(variables,
-      // @ts-ignore Testing untyped usage; only `{ none: true }` is legal.
-      { none: false }
-    )).toEqual(
-      nonFilteredOutput,
-    );
+    expect(
+      makeTraceDetails(
+        variables,
+        // @ts-ignore Testing untyped usage; only `{ none: true }` is legal.
+        { none: false },
+      ),
+    ).toEqual(nonFilteredOutput);
 
-    expect(makeTraceDetails(variables,
-      // @ts-ignore Testing untyped usage; only `{ all: true }` is legal.
-      { all: false }
-    )).toEqual(filteredOutput);
+    expect(
+      makeTraceDetails(
+        variables,
+        // @ts-ignore Testing untyped usage; only `{ all: true }` is legal.
+        { all: false },
+      ),
+    ).toEqual(filteredOutput);
   });
 });
 
@@ -260,7 +274,7 @@ describe('variableJson output for sendVariableValues transform: custom function 
     ).toEqual(JSON.stringify(null));
   });
 
-  const errorThrowingModifier = (input: {
+  const errorThrowingModifier = (_input: {
     variables: Record<string, any>;
   }): Record<string, any> => {
     throw new GraphQLError('testing error handling');
@@ -318,9 +332,11 @@ const headersOutput = { name: new Trace.HTTP.Values({ value: ['value'] }) };
 describe('tests for the sendHeaders reporting option', () => {
   it('sendHeaders defaults to hiding all', () => {
     const http = makeTestHTTP();
-    makeHTTPRequestHeaders(http, headers,
+    makeHTTPRequestHeaders(
+      http,
+      headers,
       // @ts-ignore: `null` is not a valid type; check output on invalid input.
-      null
+      null,
     );
     expect(http.requestHeaders).toEqual({});
     makeHTTPRequestHeaders(http, headers, undefined);
@@ -341,16 +357,20 @@ describe('tests for the sendHeaders reporting option', () => {
 
   it('invalid inputs for sendHeaders.all and sendHeaders.none', () => {
     const httpSafelist = makeTestHTTP();
-    makeHTTPRequestHeaders(httpSafelist, headers,
+    makeHTTPRequestHeaders(
+      httpSafelist,
+      headers,
       // @ts-ignore Testing untyped usage; only `{ none: true }` is legal.
-      { none: false }
+      { none: false },
     );
     expect(httpSafelist.requestHeaders).toEqual(headersOutput);
 
     const httpBlocklist = makeTestHTTP();
-    makeHTTPRequestHeaders(httpBlocklist, headers,
+    makeHTTPRequestHeaders(
+      httpBlocklist,
+      headers,
       // @ts-ignore Testing untyped usage; only `{ all: true }` is legal.
-      { all: false }
+      { all: false },
     );
     expect(httpBlocklist.requestHeaders).toEqual({});
   });
