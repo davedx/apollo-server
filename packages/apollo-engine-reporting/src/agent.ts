@@ -1,7 +1,6 @@
 import os from 'os';
 import { gzip } from 'zlib';
 import {
-  buildSchema,
   DocumentNode,
   GraphQLError,
   GraphQLSchema,
@@ -27,6 +26,7 @@ import { ApolloServerPlugin } from 'apollo-server-plugin-base';
 import { reportingLoop, SchemaReporter } from './schemaReporter';
 import { v4 as uuidv4 } from 'uuid';
 import { sha256 } from 'sha.js';
+import { isString } from "util";
 
 let warnedOnDeprecatedApiKey = false;
 
@@ -283,15 +283,7 @@ export interface EngineReportingOptions<TContext> {
    * This schema does not go through any normalizations and the string is directly sent to Apollo Graph Manager.
    * This would be useful for comments or other ordering and whitespace changes that get stripped when generating a `GraphQLSchema`
    */
-  experimental__overrideReportedSchema?: string | GraphQLSchema;
-
-  /**
-   * This is a function that can be used to generate an executable schema id.
-   * This is used to determine whether a schema should be sent to graph manager
-   */
-  experimental__overrideExecutableSchemaIdGenerator?: (
-    schema: string | GraphQLSchema,
-  ) => string;
+  experimental__overrideReportedSchema?: string;
 
   /**
    * The URL to use for reporting schemas.
@@ -352,9 +344,8 @@ export class EngineReportingAgent<TContext = any> {
   private currentSchemaReporter?: SchemaReporter;
 
   private readonly bootId: string;
-  private readonly executableSchemaIdGenerator: (
-    schema: string | GraphQLSchema,
-  ) => string;
+
+
 
   public constructor(options: EngineReportingOptions<TContext> = {}) {
     this.options = options;
@@ -401,45 +392,19 @@ export class EngineReportingAgent<TContext = any> {
       });
     }
 
-    if (this.options.experimental__overrideExecutableSchemaIdGenerator) {
-      this.executableSchemaIdGenerator = this.options.experimental__overrideExecutableSchemaIdGenerator;
-    } else {
-      this.executableSchemaIdGenerator = (schema: string | GraphQLSchema) => {
-        let graphQLSchema =
-          typeof schema === 'string' ? buildSchema(schema) : schema;
-
-        return new sha256()
-          .update(
-            stripIgnoredCharacters(
-              printSchema(lexicographicSortSchema(graphQLSchema)),
-            ),
-          )
-          .digest('hex');
-      };
-    }
-
     // Handle the legacy options: privateVariables and privateHeaders
     handleLegacyOptions(this.options);
   }
 
-  private overrideSchema(): {
-    executableSchemaDocument: string;
-    executableSchemaId: string;
-  } | null {
-    if (!this.options.experimental__overrideReportedSchema) {
-      return null;
-    }
+  public executableSchemaIdGenerator(schema: string | GraphQLSchema) {
+    // TODO caching in the agent so we don't do expensive operations on each request.
+    let schemaDocument = isString(schema) ? schema :
+      stripIgnoredCharacters(
+        printSchema(lexicographicSortSchema(schema))
+      );
 
-    let executableSchemaId = this.executableSchemaIdGenerator(
-      this.options.experimental__overrideReportedSchema,
-    );
-
-    let executableSchemaDocument: string =
-      typeof this.options.experimental__overrideReportedSchema === 'string'
-        ? this.options.experimental__overrideReportedSchema
-        : printSchema(this.options.experimental__overrideReportedSchema);
-
-    return { executableSchemaDocument, executableSchemaId };
+    return new sha256().update(schemaDocument)
+      .digest("hex");
   }
 
   public newPlugin(): ApolloServerPlugin<TContext> {
@@ -447,8 +412,7 @@ export class EngineReportingAgent<TContext = any> {
       this.options,
       this.addTrace.bind(this),
       this.startSchemaReporting.bind(this),
-      this.overrideSchema(),
-      this.executableSchemaIdGenerator,
+      this.executableSchemaIdGenerator.bind(this)
     );
   }
 
